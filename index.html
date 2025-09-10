@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Food Nutrition Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f8fb;
+      color: #333;
+    }
+    header {
+      background: #4CAF50;
+      padding: 15px;
+      text-align: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      background: #333;
+    }
+    nav a {
+      padding: 14px 20px;
+      text-decoration: none;
+      color: white;
+      font-weight: bold;
+    }
+    nav a:hover {
+      background: #4CAF50;
+    }
+    .container {
+      padding: 20px;
+      display: none;
+      max-width: 900px;
+      margin: auto;
+    }
+    .active {
+      display: block;
+    }
+    h2 {
+      color: #4CAF50;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    input, button, textarea {
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 100%;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .result {
+      margin-top: 15px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-left: 5px solid #4CAF50;
+    }
+    .positive { color: green; font-weight: bold; }
+    .negative { color: red; font-weight: bold; }
+    footer {
+      text-align: center;
+      padding: 15px;
+      margin-top: 30px;
+      background: #333;
+      color: white;
+    }
+    canvas {
+      margin-top: 20px;
+      max-width: 400px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body>
+  <header>🍎 Food Nutrition Dashboard</header>
+  <nav>
+    <a href="#" onclick="showPage('home')">Home</a>
+    <a href="#" onclick="showPage('nutrition')">Nutrition Analyzer</a>
+    <a href="#" onclick="showPage('about')">About</a>
+    <a href="#" onclick="showPage('contact')">Contact</a>
+  </nav>
+
+  <!-- Home Page -->
+  <div id="home" class="container active">
+    <div class="card">
+      <h2>Welcome to Food Nutrition Dashboard</h2>
+      <p>Analyze foods with **live OpenFoodFacts API**. See <b>ingredients, calories, benefits, negatives</b>, and nutrient breakdown in charts.</p>
+    </div>
+  </div>
+
+  <!-- Nutrition Analyzer -->
+  <div id="nutrition" class="container">
+    <div class="card">
+      <h2>🍽 Food Nutrition Analyzer</h2>
+      <input type="text" id="foodInput" placeholder="Enter a food item (e.g., Apple, Pizza)">
+      <button onclick="analyzeFood()">Analyze</button>
+      <div id="foodResult" class="result"></div>
+      <canvas id="nutritionChart"></canvas>
+    </div>
+  </div>
+
+  <!-- About Page -->
+  <div id="about" class="container">
+    <div class="card">
+      <h2>About Us</h2>
+      <p>This dashboard connects with the <b>OpenFoodFacts API</b> to analyze foods in real time. 
+         It shows <b>calories, nutrients, benefits, and negatives</b> for smarter eating decisions.</p>
+    </div>
+  </div>
+
+  <!-- Contact Page -->
+  <div id="contact" class="container">
+    <div class="card">
+      <h2>Contact Us</h2>
+      <p>We’d love to hear from you! Please reach out for feedback or suggestions.</p>
+      <form>
+        <input type="text" placeholder="Your Name" required>
+        <input type="email" placeholder="Your Email" required>
+        <textarea placeholder="Your Message" rows="4" required></textarea>
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <footer>© 2025 Food Nutrition Dashboard | Powered by OpenFoodFacts</footer>
+
+  <script>
+    function showPage(pageId) {
+      document.querySelectorAll('.container').forEach(div => div.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+    }
+
+    function analyzeHealth(nutrients) {
+      let messages = { benefits: [], negatives: [] };
+      if (nutrients.fiber_100g > 3) messages.benefits.push("High fiber → good for digestion ✅");
+      if (nutrients.proteins_100g > 5) messages.benefits.push("Good protein → supports muscles 💪");
+      if (nutrients.sugars_100g > 10) messages.negatives.push("High sugar → may increase weight ⚠️");
+      if (nutrients.fat_100g > 15) messages.negatives.push("High fat → may affect heart health ❤️‍🩹");
+      if (nutrients['energy-kcal_100g'] < 100) messages.benefits.push("Low calorie → weight friendly 🌱");
+      return messages;
+    }
+
+    async function analyzeFood() {
+      const query = document.getElementById("foodInput").value.trim();
+      const resultDiv = document.getElementById("foodResult");
+      const chartCanvas = document.getElementById("nutritionChart");
+
+      if (!query) {
+        resultDiv.innerHTML = "<p>❌ Please enter a food.</p>";
+        return;
+      }
+
+      try {
+        let res = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1`);
+        let data = await res.json();
+
+        if (!data.products || data.products.length === 0) {
+          resultDiv.innerHTML = "<p>❌ No data found for this food.</p>";
+          return;
+        }
+
+        let food = data.products[0];
+        let nutrients = food.nutriments || {};
+
+        let messages = analyzeHealth(nutrients);
+
+        resultDiv.innerHTML = `
+          <h3>${food.product_name || query}</h3>
+          <p><b>Ingredients:</b> ${food.ingredients_text || "Not available"}</p>
+          <p><b>Calories:</b> ${nutrients['energy-kcal_100g'] || 0} kcal / 100g</p>
+          <p><b>Protein:</b> ${nutrients.proteins_100g || 0} g</p>
+          <p><b>Fat:</b> ${nutrients.fat_100g || 0} g</p>
+          <p><b>Carbs:</b> ${nutrients.carbohydrates_100g || 0} g</p>
+          <p><b>Sugars:</b> ${nutrients.sugars_100g || 0} g</p>
+          <p><b>Fiber:</b> ${nutrients.fiber_100g || 0} g</p>
+          <h4 class="positive">✅ Benefits</h4>
+          <ul>${messages.benefits.map(b => `<li>${b}</li>`).join("") || "<li>None</li>"}</ul>
+          <h4 class="negative">⚠️ Negatives</h4>
+          <ul>${messages.negatives.map(n => `<li>${n}</li>`).join("") || "<li>None</li>"}</ul>
+        `;
+
+        // Chart.js pie chart for Protein, Fat, Carbs
+        if (window.nutritionChartInstance) {
+          window.nutritionChartInstance.destroy();
+        }
+        window.nutritionChartInstance = new Chart(chartCanvas, {
+          type: 'pie',
+          data: {
+            labels: ['Protein (g)', 'Fat (g)', 'Carbs (g)'],
+            datasets: [{
+              data: [nutrients.proteins_100g || 0, nutrients.fat_100g || 0, nutrients.carbohydrates_100g || 0],
+              backgroundColor: ['#4CAF50', '#FF7043', '#42A5F5']
+            }]
+          },
+          options: {
+            plugins: {
+              legend: { position: 'bottom' }
+            }
+          }
+        });
+
+      } catch (err) {
+        resultDiv.innerHTML = "<p>⚠️ Error fetching data.</p>";
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>
